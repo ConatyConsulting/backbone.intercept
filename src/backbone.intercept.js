@@ -7,7 +7,8 @@ Backbone.Intercept = {
   defaults: {
     trigger : true,
     links   : true,
-    forms   : true
+    forms   : true,
+    precheck : false
   },
 
   start: function(options) {
@@ -76,13 +77,29 @@ Backbone.Intercept = {
 
     // Return if the URL is absolute, or if the protocol is mailto or javascript
     if (/^#|javascript:|mailto:|(?:\w+:)?\/\//.test(href)) { return; }
+    
+    // Get the computed pathname of the link, removing
+    // the leading slash. Regex required for IE8 support
+    var pathname = $link[0].pathname.replace(/^\//, '') + $link[0].search;
+    
+    // Short-circuit if there is no matching Backbone route
+    if (this.defaults.precheck) {
+      // Normalize the fragment.
+      var fragment = Backbone.history.getFragment(pathname || '');
+      // Strip the hash and decode for matching.
+      fragment = Backbone.history.decodeFragment(fragment.replace(/#.*$/, ''));
+      
+      if(!_.some(Backbone.history.handlers, function(handler) {
+        if (handler.route.test(fragment)) {
+          return true;
+        }
+      })) { return; }
+      
+    }
 
     // If we haven't been stopped yet, then we prevent the default action
     e.preventDefault();
 
-    // Get the computed pathname of the link, removing
-    // the leading slash. Regex required for IE8 support
-    var pathname = $link[0].pathname.replace(/^\//, '') + $link[0].search;
 
     // Lastly we send off the information to the router
     if (!this.navigate) { return; }
